@@ -9,11 +9,9 @@ project(
 wayland_protos = dependency('wayland-protocols', version: '>=1.14')
 wl_scanner = find_program('wayland-scanner')
 
-# Get the path to the XML definition
 wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir')
 xdg_shell_xml = wl_protocol_dir + '/stable/xdg-shell/xdg-shell.xml'
 
-# Instruct meson to generate the header file
 xdg_shell_proto_h = custom_target(
   'xdg-shell-protocol.h',
   output: 'xdg-shell-protocol.h',
@@ -22,11 +20,11 @@ xdg_shell_proto_h = custom_target(
 )
 
 dependencies = [
-  dependency('wlroots-0.19'),
+  dependency('wlroots-0.20'),
   dependency('wayland-server'),
   dependency('xkbcommon'),
   dependency('cairo'),
-  dependency('mpack'),
+  dependency('mpack')
 ]
 
 sources = [
@@ -39,5 +37,6 @@ exe = executable(
   sources,
   dependencies : dependencies,
   # install : true,
-  c_args : '-DWLR_USE_UNSTABLE'
+  c_args : ['-DWLR_USE_UNSTABLE'],
+  link_args : []
 )

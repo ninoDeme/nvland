@@ -14,15 +14,15 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/interfaces/wlr_buffer.h>
-#include <drm_fourcc.h>
+#include <libdrm/drm_fourcc.h>
 
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/util/log.h>
 
 #include <cairo.h>
 
-#define FONT_SIZE 16
-#define FONT "@cairo:monospace"
+#define FONT_SIZE 38
+#define FONT "DejaVu Sans Mono"
 
 struct cairo_buffer {
   struct wlr_buffer base;
@@ -117,12 +117,18 @@ struct nvland_cell {
   bool underdotted;
   bool underdouble;
   bool underline;
-  char glyph;
+  char glyph[4];
 };
 
 struct nvland_output_state {
   int width;
   int height;
+
+  int offset_height;
+  int cell_width;
+  int cell_height;
+  int font_size;
+
   struct nvland_cell *text_buffer;
 };
 
@@ -142,9 +148,9 @@ struct nvland_output {
   struct wlr_scene_buffer *scene_buffer;
 };
 
-void draw_cell(cairo_t *cr, int x, int y, struct nvland_cell cell) {
-  char buff[2] = {'A', '\0'};
-  cairo_move_to(cr, x * FONT_SIZE, y * FONT_SIZE);
+void draw_cell(cairo_t *cr, int x, int y, struct nvland_cell cell, struct nvland_output_state *state) {
+  char buff[] = "╳\0";
+  cairo_move_to(cr, x * state->cell_width, y * state->cell_height + state->offset_height);
   cairo_show_text(cr, buff);
 }
 
@@ -163,17 +169,21 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	cairo_t *cr = cairo_create(output->buffer->surface);
 	cairo_set_source_rgb(cr, 0.1, 0.1, 0.1);
   cairo_paint(cr);
-	cairo_set_source_rgb(cr, 1, 1, 1);
+	cairo_set_source_rgba(cr, 1, 1, 1, 0.5);
   cairo_select_font_face(cr, FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-  cairo_set_font_size(cr, FONT_SIZE);
+  cairo_set_font_size(cr, output->state.font_size);
 
   int i = 0;
   for (int h = 0; h < output->state.height; h++) {
     for (int w = 0; w < output->state.width; w++) {
-      draw_cell(cr, w, h, output->state.text_buffer[i]);
+      draw_cell(cr, w, h, output->state.text_buffer[i], &output->state);
       i += 1;
     }
   }
+
+  cairo_set_source_rgb(cr, 1, 0, 0);
+  cairo_rectangle(cr, 0, 0, 1280, 720);
+  cairo_stroke(cr);
 
 	cairo_destroy(cr);
 	/* End drawing */
@@ -229,8 +239,28 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
   wlr_scene_output_layout_add_output(server->scene_layout, l_output, scene_output);
 
   output->buffer = create_cairo_buffer(wlr_output->width, wlr_output->height);
-  output->state.width = floorf((float) wlr_output->width / FONT_SIZE);
-  output->state.height = floorf((float) wlr_output->height / FONT_SIZE);
+  output->state.font_size = FONT_SIZE;
+
+  {
+    cairo_t *cr = cairo_create(output->buffer->surface);
+    cairo_select_font_face(cr, FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, output->state.font_size);
+    cairo_font_extents_t font_extents;
+    cairo_font_extents(cr, &font_extents);
+    cairo_text_extents_t text_extents;
+    cairo_text_extents(cr, "m", &text_extents);
+
+    output->state.cell_width = text_extents.x_advance;
+    output->state.cell_height = font_extents.height;
+    output->state.offset_height = font_extents.ascent;
+    // printf("%f %f %f\n", font_extents.ascent, font_extents.descent, font_extents.height);
+
+    cairo_destroy(cr);
+  }
+
+  output->state.width = (float) wlr_output->width / (float) output->state.cell_width;
+  output->state.height = (float) wlr_output->height / (float) output->state.cell_height;
+  printf("%i %i %i\n", output->state.cell_width, wlr_output->width, output->state.width);
   output->state.text_buffer = calloc(output->state.width * output->state.height, sizeof(struct nvland_cell));
 
 //  wlr_buffer_drop(&output->buffer->base);
