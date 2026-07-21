@@ -20,7 +20,7 @@ xdg_shell_proto_h = custom_target(
 )
 
 dependencies = [
-  dependency('wlroots-0.20'),
+  dependency(['wlroots-0.20', 'wlroots-0.19']),
   dependency('wayland-server'),
   dependency('xkbcommon'),
   dependency('cairo'),
@@ -28,7 +28,8 @@ dependencies = [
 ]
 
 sources = [
-  'nvland.c',
+  'nvland_compositor.c',
+  'nvim_rpc.c',
   xdg_shell_proto_h
 ]
 

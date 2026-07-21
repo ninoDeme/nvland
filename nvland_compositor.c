@@ -21,6 +21,8 @@
 
 #include <cairo.h>
 
+#include "nvim_rpc.h"
+
 #define FONT_SIZE 38
 #define FONT "DejaVu Sans Mono"
 
@@ -36,8 +38,7 @@ static void cairo_buffer_destroy(struct wlr_buffer *wlr_buffer) {
   free(buffer);
 }
 
-static bool cairo_buffer_begin_data_ptr_access(struct wlr_buffer *wlr_buffer,
-    uint32_t flags, void **data, uint32_t *format, size_t *stride) {
+static _Bool cairo_buffer_begin_data_ptr_access(struct wlr_buffer *wlr_buffer, uint32_t flags, void **data, uint32_t *format, size_t *stride) {
   struct cairo_buffer *buffer = wl_container_of(wlr_buffer, buffer, base);
 
   if (flags & WLR_BUFFER_DATA_PTR_ACCESS_WRITE) {
@@ -161,7 +162,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
   struct wlr_output *wlr_output = output->wlr_output;
   struct wlr_scene *scene = output->server->scene;
 
-  struct wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, output->wlr_output);
+  struct wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, wlr_output);
 
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
@@ -270,6 +271,20 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 }
 
 int main (int argc, char **argv) {
+  struct nvl_rpc_t *rpc_connection = malloc(sizeof(struct nvl_rpc_t));
+  nvl_rpc_init(rpc_connection, "/run/user/1001/nvim.1979087.0");
+  nvl_rpc_eval(rpc_connection, "\"Hello World!\"");
+
+  nvl_rpc_ui_attach(rpc_connection, 100, 100);
+  nvl_rpc_poll(rpc_connection, 100, NULL, NULL);;
+  nvl_rpc_poll(rpc_connection, 100, NULL, NULL);;
+  nvl_rpc_poll(rpc_connection, 100, NULL, NULL);;
+  nvl_rpc_poll(rpc_connection, 100, NULL, NULL);;
+  nvl_rpc_poll(rpc_connection, 100, NULL, NULL);;
+  nvl_rpc_ui_detach(rpc_connection);
+
+  exit(0);
+
   wlr_log_init(WLR_DEBUG, NULL);
   struct nvland_server server = {0};
   server.wl_display = wl_display_create();
